@@ -10,22 +10,33 @@ import { analyzeSalesData, AnalyzeSalesDataOutput } from '@/ai/flows/analyze-sal
 import { Lightbulb, TrendingUp, Loader2, BarChart } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
+import { useAuth } from '@/hooks/use-auth';
 
 
-const InsightsReport = lazy(() => import('./insights-report').then(module => ({ default: module.InsightsReport })));
+const InsightsReport = lazy(() => import('./insights-report'));
 
 export default function InsightsPage() {
+  const { user } = useAuth();
   const [insights, setInsights] = useState<AnalyzeSalesDataOutput | null>(null);
   const [loading, setLoading] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const { toast } = useToast();
 
   const handleGenerateInsights = async () => {
+    if (!user) {
+      toast({
+        variant: 'destructive',
+        title: 'Authentication Required',
+        description: 'You must be logged in to generate insights.',
+      });
+      return;
+    }
+
     setLoading(true);
     setInsights(null);
     setShowReport(false);
     try {
-      const bills = await getBills(20); // Fetch last 20 bills for analysis
+      const bills = await getBills(user.uid, 20); // Fetch last 20 bills for analysis
       if (bills.length === 0) {
         toast({
           variant: 'default',
@@ -61,6 +72,19 @@ export default function InsightsPage() {
       setLoading(false);
     }
   };
+
+  if (!user) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-headline font-bold">AI Sales Insights</h1>
+          <p className="text-muted-foreground">
+            Please log in to analyze your sales data with Gemini.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

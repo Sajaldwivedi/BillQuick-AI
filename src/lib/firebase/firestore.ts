@@ -1,17 +1,30 @@
 import { db } from './config';
-import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, limit, increment, getCountFromServer, type DocumentReference } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, limit, increment, getCountFromServer, where, type DocumentReference } from 'firebase/firestore';
 import type { Product, Bill } from '@/types';
 
 // Products collection
 const productsCollection = collection(db, 'products');
 
-export const getProducts = async (): Promise<Product[]> => {
-  const snapshot = await getDocs(query(productsCollection, orderBy('name')));
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+export const getProducts = async (userId: string): Promise<Product[]> => {
+  try {
+    const snapshot = await getDocs(query(productsCollection, where('userId', '==', userId), orderBy('name')));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+  } catch (error: any) {
+    // Fallback: if index doesn't exist, get all products and filter client-side
+    if (error.code === 'failed-precondition' || error.message.includes('index')) {
+      console.warn('Index not found for products query, falling back to client-side filtering');
+      const snapshot = await getDocs(productsCollection);
+      return snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as Product))
+        .filter(product => product.userId === userId)
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+    throw error;
+  }
 };
 
-export const getProductCount = async (): Promise<number> => {
-  const snapshot = await getDocs(productsCollection);
+export const getProductCount = async (userId: string): Promise<number> => {
+  const snapshot = await getDocs(query(productsCollection, where('userId', '==', userId)));
   // Sum the quantity of each product to get the total number of items in stock
   return snapshot.docs.reduce((acc, doc) => acc + (doc.data().quantity || 0), 0);
 };
@@ -41,29 +54,56 @@ export const updateProductQuantity = async (productId: string, quantitySold: num
 // Bills collection
 const billsCollection = collection(db, 'bills');
 
-export const getBills = async (count?: number): Promise<Bill[]> => {
-  const billsQuery = count 
-    ? query(billsCollection, orderBy('createdAt', 'desc'), limit(count))
-    : query(billsCollection, orderBy('createdAt', 'desc'));
+export const getBills = async (userId: string, count?: number): Promise<Bill[]> => {
+  try {
+    const billsQuery = count 
+      ? query(billsCollection, where('userId', '==', userId), orderBy('createdAt', 'desc'), limit(count))
+      : query(billsCollection, where('userId', '==', userId), orderBy('createdAt', 'desc'));
 
-  const snapshot = await getDocs(billsQuery);
-  return snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt.toDate(), // Convert Firestore Timestamp to JS Date
-      } as Bill
-  });
+    const snapshot = await getDocs(billsQuery);
+    return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt.toDate(), // Convert Firestore Timestamp to JS Date
+        } as Bill
+    });
+  } catch (error: any) {
+    // Fallback: if index doesn't exist, get all bills and filter client-side
+    if (error.code === 'failed-precondition' || error.message.includes('index')) {
+      console.warn('Index not found for bills query, falling back to client-side filtering');
+      const snapshot = await getDocs(billsCollection);
+      let bills = snapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt.toDate(),
+          } as Bill;
+        })
+        .filter(bill => bill.userId === userId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      
+      // Apply limit if specified
+      if (count) {
+        bills = bills.slice(0, count);
+      }
+      
+      return bills;
+    }
+    throw error;
+  }
 };
 
-export const getBillCount = async (): Promise<number> => {
-  const snapshot = await getCountFromServer(billsCollection);
+export const getBillCount = async (userId: string): Promise<number> => {
+  const snapshot = await getCountFromServer(query(billsCollection, where('userId', '==', userId)));
   return snapshot.data().count;
 }
 
-export const getTotalSales = async (): Promise<number> => {
-  const snapshot = await getDocs(billsCollection);
+export const getTotalSales = async (userId: string): Promise<number> => {
+  const snapshot = await getDocs(query(billsCollection, where('userId', '==', userId)));
   return snapshot.docs.reduce((acc, doc) => acc + doc.data().total, 0);
 };
 

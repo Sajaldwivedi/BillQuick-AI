@@ -7,25 +7,26 @@ interface ProductState {
   products: Product[];
   loading: boolean;
   error: string | null;
-  fetchProducts: () => Promise<void>;
+  fetchProducts: (userId: string) => Promise<void>;
   addProduct: (product: Product) => void;
   updateProduct: (updatedProduct: Product) => void;
   deleteProduct: (productId: string) => void;
   updateProductQuantity: (productId: string, quantityChange: number) => void;
+  clearProducts: () => void;
 }
 
 export const useProductStore = create<ProductState>((set, get) => ({
   products: [],
   loading: false,
   error: null,
-  fetchProducts: async () => {
+  fetchProducts: async (userId: string) => {
     // Only fetch if products aren't already loaded
     if (get().products.length > 0 || get().loading) {
       return;
     }
     set({ loading: true, error: null });
     try {
-      const products = await getProducts();
+      const products = await getProducts(userId);
       set({ products, loading: false });
     } catch (error) {
       set({ error: 'Failed to fetch products.', loading: false });
@@ -54,5 +55,8 @@ export const useProductStore = create<ProductState>((set, get) => ({
             p.id === productId ? {...p, quantity: p.quantity + quantityChange} : p
         )
     }));
+  },
+  clearProducts: () => {
+    set({ products: [], loading: false, error: null });
   }
 }));

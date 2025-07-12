@@ -22,6 +22,7 @@ import type { Product } from '@/types';
 import { PlusCircle, Edit, Trash2, Loader2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useProductStore } from '@/hooks/use-product-store';
+import { useAuth } from '@/hooks/use-auth';
 
 const productSchema = z.object({
   name: z.string().min(1, 'Product name is required.'),
@@ -32,7 +33,8 @@ const productSchema = z.object({
 type ProductFormValues = z.infer<typeof productSchema>;
 
 export default function ProductsTable() {
-  const { products, loading, fetchProducts, addProduct, updateProduct, deleteProduct } = useProductStore();
+  const { user } = useAuth();
+  const { products, loading, fetchProducts, addProduct, updateProduct, deleteProduct, clearProducts } = useProductStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [filter, setFilter] = useState('');
@@ -48,8 +50,12 @@ export default function ProductsTable() {
   });
 
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    if (user) {
+      fetchProducts(user.uid);
+    } else {
+      clearProducts();
+    }
+  }, [fetchProducts, user, clearProducts]);
 
   const handleDialogOpen = (product: Product | null = null) => {
     setEditingProduct(product);
@@ -62,6 +68,11 @@ export default function ProductsTable() {
   };
 
   const onSubmit = async (values: ProductFormValues) => {
+    if (!user) {
+      toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to perform this action.' });
+      return;
+    }
+
     try {
       if (editingProduct) {
         const updatedProductData = { ...editingProduct, ...values };
@@ -69,8 +80,9 @@ export default function ProductsTable() {
         updateProduct(updatedProductData); // Update local store
         toast({ title: 'Success', description: 'Product updated successfully.' });
       } else {
-        const newProductRef = await addProductToDB(values);
-        addProduct({ id: newProductRef.id, ...values }); // Update local store
+        const newProductData = { ...values, userId: user.uid };
+        const newProductRef = await addProductToDB(newProductData);
+        addProduct({ id: newProductRef.id, ...newProductData }); // Update local store
         toast({ title: 'Success', description: 'Product added successfully.' });
       }
       setDialogOpen(false);
@@ -95,6 +107,10 @@ export default function ProductsTable() {
   const filteredProducts = useMemo(() => {
     return products.filter(p => p.name.toLowerCase().includes(filter.toLowerCase()));
   }, [products, filter]);
+
+  if (!user) {
+    return <div className="flex justify-center items-center h-64">Please log in to view your inventory.</div>;
+  }
 
   if (loading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;

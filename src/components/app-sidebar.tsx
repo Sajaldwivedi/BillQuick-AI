@@ -4,8 +4,9 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { signOutUser } from '@/lib/firebase/auth';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
+import { useProductStore } from '@/hooks/use-product-store';
 import { 
   LayoutDashboard, 
   Package, 
@@ -71,11 +72,14 @@ const MobileNavLinks = () => {
 export function AppSidebar() {
   const router = useRouter();
   const { toast } = useToast();
+  const { logout } = useAuth();
+  const { clearProducts } = useProductStore();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const handleSignOut = async () => {
     try {
-      await signOutUser();
+      clearProducts(); // Clear the product store
+      await logout();
       toast({ title: "Signed Out", description: "You have been successfully signed out." });
       router.push('/login');
     } catch (error) {

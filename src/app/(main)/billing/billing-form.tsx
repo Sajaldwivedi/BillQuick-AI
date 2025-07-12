@@ -13,6 +13,7 @@ import type { Bill, BillItem } from '@/types';
 import { useRouter } from 'next/navigation';
 import { generateInvoicePdf } from '@/lib/pdf';
 import { useProductStore } from '@/hooks/use-product-store';
+import { useAuth } from '@/hooks/use-auth';
 
 type BillFormValues = {
   customerName: string;
@@ -20,6 +21,7 @@ type BillFormValues = {
 };
 
 export function BillingForm() {
+  const { user } = useAuth();
   const { products, loading: loadingProducts, fetchProducts, updateProductQuantity } = useProductStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
@@ -40,8 +42,10 @@ export function BillingForm() {
   const watchItems = watch('items');
 
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    if (user) {
+      fetchProducts(user.uid);
+    }
+  }, [fetchProducts, user]);
 
   const handleProductChange = (index: number, productId: string) => {
     const product = products.find((p) => p.id === productId);
@@ -57,6 +61,11 @@ export function BillingForm() {
   };
 
   const onSubmit = async (data: BillFormValues) => {
+    if (!user) {
+      toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to create a bill.' });
+      return;
+    }
+
     setIsSubmitting(true);
     const billTotal = calculateTotal();
     
@@ -78,6 +87,7 @@ export function BillingForm() {
 
     try {
       const billForFirestore: Omit<Bill, 'id'> = {
+        userId: user.uid,
         customerName: data.customerName || 'Walk-in Customer',
         items: data.items,
         total: billTotal,
@@ -109,6 +119,10 @@ export function BillingForm() {
       setIsSubmitting(false);
     }
   };
+
+  if (!user) {
+    return <div className="flex justify-center items-center h-64">Please log in to create bills.</div>;
+  }
 
   return (
     <div className="bg-card p-4 sm:p-6 rounded-lg shadow-sm">
