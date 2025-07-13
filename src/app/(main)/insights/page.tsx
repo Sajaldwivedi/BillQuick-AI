@@ -7,13 +7,29 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { getBills } from '@/lib/firebase/firestore';
 import { analyzeSalesData, AnalyzeSalesDataOutput } from '@/ai/flows/analyze-sales-data';
-import { Lightbulb, TrendingUp, Loader2, BarChart } from 'lucide-react';
+import { Lightbulb, TrendingUp, Loader2, BarChart, Menu } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
-
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { AppSidebar } from '@/components/app-sidebar';
 
 const InsightsReport = lazy(() => import('./insights-report'));
+
+function InsightsHeaderMobile({ onMenuClick }: { onMenuClick: () => void }) {
+  return (
+    <div className="md:hidden flex items-center gap-3 px-3 py-3 sticky top-0 z-30 bg-white/90 border-b shadow-sm">
+      <button
+        onClick={onMenuClick}
+        className="p-2 rounded-lg border border-gray-200 bg-white shadow hover:bg-gray-100 active:bg-gray-200 transition"
+        aria-label="Open menu"
+      >
+        <Menu className="h-6 w-6 text-primary" />
+      </button>
+      <h1 className="text-xl font-headline font-bold tracking-tight">Insights</h1>
+    </div>
+  );
+}
 
 export default function InsightsPage() {
   const { user } = useAuth();
@@ -21,6 +37,7 @@ export default function InsightsPage() {
   const [loading, setLoading] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const { toast } = useToast();
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const handleGenerateInsights = async () => {
     if (!user) {
@@ -76,6 +93,7 @@ export default function InsightsPage() {
   if (!user) {
     return (
       <div className="space-y-8">
+        <InsightsHeaderMobile onMenuClick={() => {}} />
         <div>
           <h1 className="text-3xl font-headline font-bold">AI Sales Insights</h1>
           <p className="text-muted-foreground">
@@ -88,7 +106,17 @@ export default function InsightsPage() {
 
   return (
     <div className="space-y-8">
-      <div>
+      {/* Mobile Header and Sidebar Sheet */}
+      <div className="md:hidden">
+        <InsightsHeaderMobile onMenuClick={() => setIsSheetOpen(true)} />
+        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+          <SheetContent side="left" className="w-72 p-0 flex flex-col bg-background">
+            <AppSidebar mobileOnly />
+          </SheetContent>
+        </Sheet>
+      </div>
+      {/* Desktop Heading */}
+      <div className="hidden md:block">
         <h1 className="text-3xl font-headline font-bold">AI Sales Insights</h1>
         <p className="text-muted-foreground">
           Analyze your sales data with Gemini to discover trends and top products.

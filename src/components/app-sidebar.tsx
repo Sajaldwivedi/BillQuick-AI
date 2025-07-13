@@ -69,7 +69,7 @@ const MobileNavLinks = () => {
   };
 
 
-export function AppSidebar() {
+export function AppSidebar({ mobileOnly = false }: { mobileOnly?: boolean }) {
   const router = useRouter();
   const { toast } = useToast();
   const { logout } = useAuth();
@@ -87,36 +87,35 @@ export function AppSidebar() {
     }
   };
 
+  if (mobileOnly) {
+    // Only render the sidebar content for mobile Sheet
+    return (
+      <>
+        <div className="p-4 border-b">
+          <div className="flex items-center gap-3">
+            <IndianRupee className="h-8 w-8 text-primary" />
+            <h2 className="text-2xl font-headline font-bold">BillQuick AI</h2>
+          </div>
+        </div>
+        <div className="flex-1 p-4">
+          <MobileNavLinks />
+        </div>
+        <div className="p-4 border-t">
+          <Button onClick={handleSignOut} variant="outline" className="w-full justify-start gap-3">
+            <LogOut className="h-5 w-5" />
+            <span className="text-base">Sign Out</span>
+          </Button>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
-      {/* Mobile Sidebar */}
-      <div className="md:hidden p-2 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="icon">
-              <Menu className="h-6 w-6" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-72 p-0 flex flex-col bg-background">
-             <div className="p-4 border-b">
-                <div className="flex items-center gap-3">
-                  <IndianRupee className="h-8 w-8 text-primary" />
-                  <h2 className="text-2xl font-headline font-bold">BillQuick AI</h2>
-                </div>
-              </div>
-              <div className="flex-1 p-4">
-                <MobileNavLinks />
-              </div>
-              <div className="p-4 border-t">
-                <Button onClick={handleSignOut} variant="outline" className="w-full justify-start gap-3">
-                  <LogOut className="h-5 w-5" />
-                  <span className="text-base">Sign Out</span>
-                </Button>
-              </div>
-          </SheetContent>
-        </Sheet>
+      {/* Mobile Sidebar (now only used for fallback, not for hamburger) */}
+      <div className="md:hidden p-2 bg-background/80 backdrop-blur-sm sticky top-0 z-10 hidden">
+        {/* Hidden: Hamburger now in page header */}
       </div>
-      
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 min-h-screen bg-background border-r p-4">
         <div className="flex items-center gap-3 mb-8">
